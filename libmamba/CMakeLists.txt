@@ -804,3 +804,7 @@ install(
     DESTINATION ${LIBMAMBA_CMAKECONFIG_INSTALL_DIR}
     COMPONENT Mamba_Development
 )
+export(
+    EXPORT ${PROJECT_NAME}Targets
+    NAMESPACE mamba::
+)
