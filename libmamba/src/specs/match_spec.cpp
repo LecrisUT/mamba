@@ -456,8 +456,17 @@ namespace mamba::specs
             }
 
             pos = str.find_last_of('=');
-            const char d = str[pos - 1];
+            if (pos == str.npos)
+            {
+                // That means that there is no operator, and version and build are separated with
+                // space(s)
+                pos = str.find_last_of(' ');
+                return { util::strip(str.substr(0, pos)), str.substr(pos + 1) };
+            }
 
+            assert(pos != str.npos);
+            assert(pos < str.size());
+            const char d = str[pos - 1];
             if (d == '=' || d == '!' || d == '|' || d == ',' || d == '<' || d == '>' || d == '~')
             {
                 // Find the position of the first non-space character after operator
@@ -473,14 +482,6 @@ namespace mamba::specs
                 }
                 // Otherwise no build is present after the version
                 return { str, {} };
-            }
-
-            if (pos == str.npos)
-            {
-                // That means that there is no operator, and version and build are separated with
-                // space(s)
-                pos = str.find_last_of(' ');
-                return { util::strip(str.substr(0, pos)), str.substr(pos + 1) };
             }
 
             // '=' is found but not combined with `d` above
@@ -1020,10 +1021,19 @@ namespace mamba::specs
 
     auto MatchSpec::is_simple() const -> bool
     {
+        const bool is_simple_version = (  //
+            (
+                // Cases likes ``>3,<4`` can be managed by libsolv
+                ((version().expression_size() == 3) && (version().is_classic_operator_expression()))
+                // And simple ones
+                || (version().expression_size() <= 1)
+            )
+            // Complex globs do not include free ranges and starts with
+            && !version().has_glob()
+        );
         // Based on what libsolv and conda_build_form can handle.
         // Glob in names and build_string are fine
-        return (version().expression_size() <= 3)      //  includes op so e.g. ``>3,<4``
-               && !version().has_glob()                //
+        return is_simple_version                       //
                && build_number().is_explicitly_free()  //
                && build_string().is_glob()             //
                && !channel().has_value()               //
